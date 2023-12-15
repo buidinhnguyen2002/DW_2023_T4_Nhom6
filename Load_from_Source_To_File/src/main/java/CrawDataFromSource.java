@@ -126,12 +126,10 @@ public class CrawDataFromSource {
             e.printStackTrace();
         }
     }
-
     private String getFileNameByCurrentDateFormat(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
         String dateStr = formatter.format(date);
         return dateStr + ".csv";
     }
-
 
 }
