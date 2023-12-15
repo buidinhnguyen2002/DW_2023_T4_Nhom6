@@ -1,12 +1,16 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.opencsv.CSVWriter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Random;
 
 public class CrawDataFromSource {
@@ -88,6 +92,45 @@ public class CrawDataFromSource {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+    public void parseToCSVFile(String path) {
+        // parse data to csv file
+        JsonParser jsonParser = new JsonParser();
+        try{
+            Object object = jsonParser.parse(new FileReader(path));
+            JsonArray jsonArray = (JsonArray) object;
+            String[] header = {"id", "title", "image", "category", "link", "description", "content", "author", "tags","created_at","updated_at","created_by","updated_by","updated_by"};
+            CSVWriter csvWriter = new CSVWriter(new FileWriter("src/main/java/data/"+getFileNameByCurrentDateFormat(new Date())));
+            csvWriter.writeNext(header);
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+            for (int i = 0; i < jsonArray.size(); i++) {
+                String[] data = new String[13];
+                data[0] = jsonArray.get(i).getAsJsonObject().get("id").getAsString();
+                data[1] = jsonArray.get(i).getAsJsonObject().get("title").getAsString();
+                data[2] = jsonArray.get(i).getAsJsonObject().get("image").getAsString();
+                data[3] = jsonArray.get(i).getAsJsonObject().get("category").getAsString();
+                data[4] = jsonArray.get(i).getAsJsonObject().get("link").getAsString();
+                data[5] = jsonArray.get(i).getAsJsonObject().get("description").getAsString();
+                data[6] = jsonArray.get(i).getAsJsonObject().get("content").getAsString();
+                data[7] = jsonArray.get(i).getAsJsonObject().get("author").getAsString();
+                data[8] = jsonArray.get(i).getAsJsonObject().get("tags").toString();
+                data[9] = formatter.format(new Date());
+                data[10] = formatter.format(new Date());
+                data[11] = "admin";
+                data[12] = "admin";
+                csvWriter.writeNext(data);
+            }
+            csvWriter.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getFileNameByCurrentDateFormat(Date date) {
+        SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
+        String dateStr = formatter.format(date);
+        return dateStr + ".csv";
     }
 
 
