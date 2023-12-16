@@ -17,6 +17,7 @@ public class ConfigReader {
         DATA_MART_USERNAME("DataMart.username"),
         DATA_MART_PASSWORD("DataMart.password"),
         MODULE_TRANSFORM_AGGREGATE("Module.TransformAggregate"),
+        MODULE_QUERY_GET_ARTICLES_DEFAULT("Module.Query.GetArticlesDefault"),
         MODULE_COLUMNS_NEW_ARTICLES("Module.Columns.NewArticles"),
         MODULE_FILE_LOGS_ERROR("Module.FileLogsError"),
         MODULE_PREVIOUS_MODULE("Module.PreviousModule");

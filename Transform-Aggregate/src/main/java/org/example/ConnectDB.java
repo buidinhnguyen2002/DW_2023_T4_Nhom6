@@ -86,7 +86,7 @@ public class ConnectDB {
         String formattedDateTime = currentDateTime.format(formatter);
 
 
-        String logData = String.format("date: %s, module: Load to data mart, status=\"%s\", message_error: %s%n",
+        String logData = String.format("date: %s, module: load to data warehouse, status=\"%s\", message_error: %s%n",
                 formattedDateTime, status, errorMessage);
 
         BufferedWriter writer = null;

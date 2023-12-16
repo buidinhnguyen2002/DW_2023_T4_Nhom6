@@ -1,6 +1,8 @@
 package org.example;
 
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
 public class Main {
     private ConfigReader configReader;
@@ -12,14 +14,13 @@ public class Main {
     String urlDW;
     String userDW;
     String passDW;
-
-    String urlDM;
-    String userDM;
-    String passDM;
     String moduleName;
     String columns;
     String filePathLogs;
     String previousModule;
+    String sqlModuleDefault;
+    String dateFrom;
+    String dateTo;
     int idLog;
     public Main(ConfigReader configReader) {
         this.configReader = configReader;
@@ -32,6 +33,7 @@ public class Main {
         columns = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_COLUMNS_NEW_ARTICLES.getPropertyName());
         filePathLogs = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_FILE_LOGS_ERROR.getPropertyName());
         previousModule = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_PREVIOUS_MODULE.getPropertyName());
+        sqlModuleDefault = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_QUERY_GET_ARTICLES_DEFAULT.getPropertyName());
 
         // load config dbControl
         urlControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_URL.getPropertyName());
@@ -105,51 +107,56 @@ public class Main {
             // Kết nối đến Data Mart
             // Truy vấn SQL để lấy dữ liệu từ bảng trong Data Warehouse
             // 7.2 Get rows in table news_articles (SELECT * FROM news_articles)
-            String sqlSelect = "SELECT * FROM news_articles";
+//            String sqlSelect = "SELECT * FROM news_articles";
+//            String sqlSelect = sqlModuleDefault;
+            String sqlSelect = createQuerySelectData();
+            System.out.println("SQL: " +  sqlSelect);
             Statement stmtDW = connectionDW.createStatement();
             ResultSet rs = stmtDW.executeQuery(sqlSelect);
 
-            // 8. Connect database data_mart
-            ConnectDB connectDM = new ConnectDB(urlDM, userDM, passDM, filePathLogs, idLog, connectDBControl.getConnection());
-            Connection connectionDM = connectDM.getConnection();
-            // 9. Checking connection to data_mart
-            if(connectionDM == null) {
-                // 9.1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_mart failed' WHERE id=1)
-                connectDW.writeLogs();
-                return;
-            }
-            // PreparedStatement để chèn dữ liệu vào Data Mart
-            String sqlInsert = createQueryInsertToDataMart("news_articles_temp");
-            PreparedStatement pstmtDM = connectionDM.prepareStatement(sqlInsert);
+            // PreparedStatement để chèn dữ liệu vào table news_articles
+            String sqlInsert = createQueryInsertToNewsArticles("news_articles");
+            PreparedStatement pstmtDW = connectionDW.prepareStatement(sqlInsert);
             String[] columnsArr = columns.split(",");
             // Duyệt qua kết quả từ Data Warehouse và chèn vào Data Mart
             // 10. Insert rows into table news_articles_temp
+
             while (rs.next()) {
                 // Lấy dữ liệu từ kết quả truy vấn DW và chèn vào DM
                 for(int i=0; i< columnsArr.length; i++){
                     String column = columnsArr[i];
-                    pstmtDM.setString(i+1, rs.getString(column));
+                    pstmtDW.setString(i+1, rs.getString(column));
                 }
                 // Thực hiện chèn dữ liệu vào Data Mart
-                pstmtDM.executeUpdate();
+                pstmtDW.executeUpdate();
             }
-            // 11. Rename table news_articles_temp to present_news_articles
-            renameTable(connectionDM);
+
             // 12. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
             updateStatusProcess("successful");
             // Đóng các kết nối
             // 13. Close all connect database
             rs.close();
             stmtDW.close();
-            pstmtDM.close();
+            pstmtDW.close();
             connectionDW.close();
-            connectionDM.close();
-//            connectDBControl.getConnection().close();
-            System.out.println("Data transfer from DW to DM completed.");
+            System.out.println("Data transform aggregate completed.");
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private String createQuerySelectData() {
+        String sql = sqlModuleDefault;
+        if(dateFrom != null && dateTo != null){
+            sql += " AND t.date BETWEEN '"+dateFrom+"'" + " AND " + "'" +dateTo+"'";
+            return sql;
+        }
+        if(dateFrom != null){
+            sql += " AND DATE(t.date) = " + "'"+dateFrom+"'";
+            return sql;
+        }
+        return sql;
     }
 
     private void updateStatusProcess(String status) {
@@ -182,24 +189,7 @@ public class Main {
         }
     }
 
-    private void renameTable(Connection connection) throws SQLException {
-        Statement statement = connection.createStatement();
-        // Đổi tên bảng present_news_articles => articles_temp
-            String queryRenameToTemp = "RENAME TABLE present_news_articles TO articles_temp";
-        statement.executeUpdate(queryRenameToTemp);
-        // Đổi tên bảng new_articles_temp => present_news_articles
-        String queryRenameToPresent = "RENAME TABLE news_articles_temp TO present_news_articles";
-        statement.executeUpdate(queryRenameToPresent);
-        // Đổi tên bảng articles_temp => news_articles_temp
-        String queryRenameToArticleTemp = "RENAME TABLE articles_temp TO news_articles_temp";
-        statement.executeUpdate(queryRenameToArticleTemp);
-        // Xóa dữ liệu bảng new_articles_temp
-        String truncateQuery = "TRUNCATE TABLE news_articles_temp";
-        statement.executeUpdate(truncateQuery);
-        System.out.println("Đã đổi tên bảng thành công!");
-    }
-
-    private String createQueryInsertToDataMart(String tableName) {
+    private String createQueryInsertToNewsArticles(String tableName) {
         String valuesField = "";
         String values = "";
         String[] columnsArr = columns.split(",");
@@ -212,16 +202,62 @@ public class Main {
         String result = "INSERT INTO "+ tableName +"("+valuesField+") VALUES ("+values+")" ;
         return result;
     }
+    public static boolean checkFormatDate(String date) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setLenient(false);
+        try {
+            dateFormat.parse(date);
+            return true;
+        } catch (ParseException e) {
+            return false;
+        }
+    }
+
+    public String getDateFrom() {
+        return dateFrom;
+    }
+
+    public void setDateFrom(String dateFrom) {
+        this.dateFrom = dateFrom;
+    }
+
+    public String getDateTo() {
+        return dateTo;
+    }
+
+    public void setDateTo(String dateTo) {
+        this.dateTo = dateTo;
+    }
 
     public static void main(String[] args) {
-        String configPath = "";
-        if (args.length > 0) {
-            configPath = args[0];
-        }
-        System.out.println();
-        System.out.println(configPath);
         ConfigReader configReader = new ConfigReader();
         Main main = new Main(configReader);
-        main.executeApp();
+        if(args.length == 0){
+            main.executeApp();
+            return;
+        }
+        if(args.length == 1){
+            String date = args[0];
+            if(!checkFormatDate(date)){
+                System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd");
+                return;
+            }
+            main.setDateFrom(date);
+            main.executeApp();
+            return;
+        }
+        if(args.length == 2){
+            String dateFrom = args[0];
+            String dateTo = args[1];
+            if(!checkFormatDate(dateFrom) || !checkFormatDate(dateTo)){
+                System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd yyyy-mm-dd");
+                return;
+            }
+            main.setDateFrom(dateFrom);
+            main.setDateTo(dateTo);
+            main.executeApp();
+            return;
+        }
+        System.out.print("Error command: \n" + "command only 2 parameter");
     }
 }
