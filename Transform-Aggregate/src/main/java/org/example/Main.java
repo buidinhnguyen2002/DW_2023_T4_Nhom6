@@ -24,9 +24,10 @@ public class Main {
     int idLog;
     public Main(ConfigReader configReader) {
         this.configReader = configReader;
+        // 3.2 Load config module
         loadConfig();
     }
-    // 1. load config module
+    // 3.2 Load config module
     public void loadConfig() {
         // load config module
         moduleName = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_TRANSFORM_AGGREGATE.getPropertyName());
@@ -47,26 +48,26 @@ public class Main {
     }
     public boolean checkPreviousProgress(){
         boolean result = false;
-        // 3. connect database control
+        // 4. connect database control
         connectDBControl = new ConnectDB(urlControl,userControl, passControl, filePathLogs);
         Connection connectionControl = connectDBControl.getConnection();
         System.out.println(connectionControl);
-        // 4. Checking connection to database control
+        // 5. Checking connection to database control
         if(connectionControl == null){
-            //4.1 Insert new record failed into file log
+            //5.1 Insert new record failed into file log
             // ghi log vào file nếu kết nối thất bại
             System.out.println("URL control: "+urlControl);
             connectDBControl.writeLogToFile(filePathLogs, "fail", "connect control failed");
             return false; //  kết thúc chương trình
         }
-        // 4.2 Select  * from logs where event = "transform aggregate" and DATE(create_at) = CURDATE() and status="successful"
+        // 5.2 Select  * from logs where event = "transform aggregate" and DATE(create_at) = CURDATE() and status="successful"
         String queryPreviousProcess = "SELECT * FROM logs where event='" + previousModule + "' AND DATE(create_at) = CURDATE() AND status='successful'";
                 try {
             Statement stmtControl = connectionControl.createStatement();
             ResultSet rs = stmtControl.executeQuery(queryPreviousProcess);
             ResultSetMetaData metaData = rs.getMetaData();
             int columnCount = metaData.getColumnCount();
-            // 5. Check query results
+            // 6. Check query results
             if(rs.next()){
                 result = true;
                 String test = "";
@@ -91,24 +92,22 @@ public class Main {
             return;
         }
         // insert logs
-        // 5.1 Insert new record into table control.log with event="Load to data mart",status="in process" (INSERT INTO logs(event, status) VALUES ('Load to data mart','in process'))
+        // 6.1 Insert new record into table control.log with event="Load to data mart",status="in process" (INSERT INTO logs(event, status) VALUES ('Load to data mart','in process'))
         insertLogsProcess();
-        // 6. Connect database data_warehouse
+        // 7. Connect database data_warehouse
         ConnectDB connectDW = new ConnectDB(urlDW, userDW, passDW, filePathLogs, idLog, connectDBControl.getConnection());
         try {
             // Kết nối đến Data Warehouse
             Connection connectionDW = connectDW.getConnection();
-            // 7. Checking connection to data_warehouse
+            // 8. Checking connection to data_warehouse
             if(connectionDW == null) {
-                // 7. 1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_warehouse failed' WHERE id=1)
+                // 8.1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_warehouse failed' WHERE id=1)
                 connectDW.writeLogs();
                 return;
             }
             // Kết nối đến Data Mart
             // Truy vấn SQL để lấy dữ liệu từ bảng trong Data Warehouse
-            // 7.2 Get rows in table news_articles (SELECT * FROM news_articles)
-//            String sqlSelect = "SELECT * FROM news_articles";
-//            String sqlSelect = sqlModuleDefault;
+            // 8.2 Get rows in table news_articles (SELECT * FROM news_articles)
             String sqlSelect = createQuerySelectData();
             System.out.println("SQL: " +  sqlSelect);
             Statement stmtDW = connectionDW.createStatement();
@@ -118,9 +117,7 @@ public class Main {
             String sqlInsert = createQueryInsertToNewsArticles("news_articles");
             PreparedStatement pstmtDW = connectionDW.prepareStatement(sqlInsert);
             String[] columnsArr = columns.split(",");
-            // Duyệt qua kết quả từ Data Warehouse và chèn vào Data Mart
-            // 10. Insert rows into table news_articles_temp
-
+            // 9. Insert rows into table news_articles
             while (rs.next()) {
                 // Lấy dữ liệu từ kết quả truy vấn DW và chèn vào DM
                 for(int i=0; i< columnsArr.length; i++){
@@ -131,10 +128,10 @@ public class Main {
                 pstmtDW.executeUpdate();
             }
 
-            // 12. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
+            // 10. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
             updateStatusProcess("successful");
             // Đóng các kết nối
-            // 13. Close all connect database
+            // 11. Close all connect database
             rs.close();
             stmtDW.close();
             pstmtDW.close();
@@ -230,6 +227,12 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        // 2. Check length parameter module (parameter.length > 2)
+        if(args.length > 2){
+            // 2.1 Display error
+            System.out.print("Error command: \n" + "command only 2 parameter");
+            return;
+        }
         ConfigReader configReader = new ConfigReader();
         Main main = new Main(configReader);
         if(args.length == 0){
@@ -237,6 +240,7 @@ public class Main {
             return;
         }
         if(args.length == 1){
+            // 2.2 Get parameter module
             String date = args[0];
             if(!checkFormatDate(date)){
                 System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd");
@@ -247,17 +251,19 @@ public class Main {
             return;
         }
         if(args.length == 2){
+            // 2.2 Get parameter module
             String dateFrom = args[0];
             String dateTo = args[1];
+            // 3. Check format parameter
+            //(format parameter is yyyy-mm-dd)
             if(!checkFormatDate(dateFrom) || !checkFormatDate(dateTo)){
+                // 3.1 Display error
                 System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd yyyy-mm-dd");
                 return;
             }
             main.setDateFrom(dateFrom);
             main.setDateTo(dateTo);
             main.executeApp();
-            return;
         }
-        System.out.print("Error command: \n" + "command only 2 parameter");
     }
 }
