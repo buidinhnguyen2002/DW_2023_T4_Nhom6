@@ -125,12 +125,31 @@
 					<div class="sidebar">
 						<div class="sidebar-widget">
 							<h2 class="sw-title">Tags</h2>
-							<div class="tags">
-								<a href="">${detail.tags}</a>
+							<div class="tags" id="tags-container">
 							</div>
 						</div>
 					</div>
 				</div>
+				<script>
+					// Đối tượng chứa thông tin chi tiết, bạn có thể thay đổi đối tượng này theo nhu cầu
+					var detail = {
+						tags: "${detail.tags}" // Chuỗi các cụm từ phân cách nhau bởi dấu phẩy
+					};
+
+					// Lấy đối tượng div chứa các tags
+					var tagsContainer = document.getElementById("tags-container");
+
+					// Tách chuỗi tags thành mảng các cụm từ
+					var tagsArray = detail.tags.split(", ");
+
+					// Tạo thẻ a cho mỗi cụm từ và thêm vào tagsContainer
+					tagsArray.forEach(function(tag) {
+						var tagElement = document.createElement("a");
+						tagElement.href = "#"; // Bạn có thể đặt href theo nhu cầu
+						tagElement.textContent = tag;
+						tagsContainer.appendChild(tagElement);
+					});
+				</script>
 			</div>
 		</div>
 	</div>

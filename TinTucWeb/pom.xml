@@ -5,7 +5,7 @@
   <artifactId>TinTuc</artifactId>
   <packaging>war</packaging>
   <version>1.0-SNAPSHOT</version>
-  <name>TinTuc Maven Webapp</name>
+  <name>TinTucWeb Maven Webapp</name>
   <url>http://maven.apache.org</url>
   <dependencies>
     <dependency>
@@ -53,6 +53,6 @@
     </dependency>
   </dependencies>
   <build>
-    <finalName>TinTuc</finalName>
+    <finalName>TinTucWeb</finalName>
   </build>
 </project>
