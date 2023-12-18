@@ -14,15 +14,6 @@ import java.util.Date;
 import java.util.Random;
 
 public class CrawDataFromSource {
-    // check if not exist, create folder
-    public static boolean isFolderExist(String path) {
-        File file = new File(path);
-        if (file.exists()) {
-            return true;
-        }
-        return file.mkdirs();
-    }
-
     public String crawlData(String url) throws IOException {
         // check connection
         if (url == null || url.isEmpty()) {
@@ -31,9 +22,7 @@ public class CrawDataFromSource {
         Document doc = Jsoup.connect(url).get();
         String category = doc.select("div.title-folder > h1 > a").text();
         Elements tags = doc.select("ul.ul-nav-folder > li");
-        System.out.println(tags.size());
         Elements elements = doc.select("article.item-news.item-news-common.thumb-left");
-        System.out.println(elements.size());
         com.google.gson.JsonArray jsonArray = new JsonArray();
         for (Element element : elements) {
             String id = category + "_" + elements.indexOf(element);
@@ -45,7 +34,6 @@ public class CrawDataFromSource {
             } else {
                 realImg = image;
             }
-            System.out.println(realImg);
             String link = element.select("div.thumb-art > a").attr("href");
             if (link == null || link.isEmpty()) {
                 continue;  // Skip this iteration if the link is empty
@@ -80,7 +68,7 @@ public class CrawDataFromSource {
         Gson gson = new Gson();
         return gson.toJson(jsonArray);
     }
-    public void saveDataToFile(String data, String path) {
+    public void saveDataToFileJson(String data, String path) {
         try {
             File file = new File(path);
             if (file.exists()) {
@@ -100,7 +88,7 @@ public class CrawDataFromSource {
             Object object = jsonParser.parse(new FileReader(path));
             JsonArray jsonArray = (JsonArray) object;
             String[] header = {"id", "title", "image", "category", "link", "description", "content", "author", "tags","created_at","updated_at","created_by","updated_by","updated_by"};
-            CSVWriter csvWriter = new CSVWriter(new FileWriter("src/main/java/data/"+getFileNameByCurrentDateFormat(new Date())));
+            CSVWriter csvWriter = new CSVWriter(new FileWriter("Load_from_Source_To_File/src/main/java/data/"+getFileNameByCurrentDateFormat(new Date())));
             csvWriter.writeNext(header);
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
             for (int i = 0; i < jsonArray.size(); i++) {
@@ -130,7 +118,18 @@ public class CrawDataFromSource {
     private String getFileNameByCurrentDateFormat(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
         String dateStr = formatter.format(date);
-        return dateStr + ".csv";
+        return "VNExpress"+dateStr + ".csv";
+    }
+
+    public static void main(String[] args) {
+        CrawDataFromSource crawDataFromSource = new CrawDataFromSource();
+        try {
+            String data = crawDataFromSource.crawlData("https://vnexpress.net/the-thao");
+//            crawDataFromSource.saveDataToFileJson(data, "Load_from_Source_To_File/src/main/java/data/data.json");
+            crawDataFromSource.parseToCSVFile("Load_from_Source_To_File/src/main/java/data/data.json");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
