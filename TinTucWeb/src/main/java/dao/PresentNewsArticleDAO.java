@@ -18,7 +18,7 @@ public class PresentNewsArticleDAO {
 
     public List<PresentNewsArticle> getAllNews(){
         List<PresentNewsArticle> list = new ArrayList<>();
-        String query = "SELECT * FROM PresentNewsArticles";
+        String query = "SELECT * FROM present_news_articles";
         try{
             conn = new Connect().getconnecttion();
             ps = conn.prepareStatement(query);
@@ -36,7 +36,7 @@ public class PresentNewsArticleDAO {
     }
 
     public PresentNewsArticle getNewsById(String id){
-        String query = "SELECT * FROM PresentNewsArticles WHERE id=?";
+        String query = "SELECT * FROM present_news_articles WHERE id=?";
         try{
             conn = new Connect().getconnecttion();
             ps = conn.prepareStatement(query);
