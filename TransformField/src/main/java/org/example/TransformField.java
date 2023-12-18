@@ -24,6 +24,7 @@ public class TransformField {
         loadConfig();
     }
 
+    // 2. Load module config
     public void loadConfig(){
         urlControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_URL.getPropertyName());
         userControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_USERNAME.getPropertyName());
