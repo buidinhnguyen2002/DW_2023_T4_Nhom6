@@ -234,17 +234,17 @@ public class Staging {
             while ((line = reader.readLine()) != null) {
             String[] data = line.split(",");
 
-            insertStatement.setString(1, data[0]);
-            insertStatement.setString(2, data[1]);
-            insertStatement.setString(3, data[2]);
-            insertStatement.setString(4, data[3]);
-            insertStatement.setString(5, data[4]);
-            insertStatement.setString(6, data[5]);
-            insertStatement.setString(7, data[6]);
-            insertStatement.setString(8, data[7]);
-            insertStatement.setString(9, data[8]);
-            insertStatement.setString(10, data[9]);
-            insertStatement.setString(11, data[10]);
+                insertStatement.setString(1, data[0]);
+                insertStatement.setString(2, data[1]);
+                insertStatement.setString(3, data[2]);
+                insertStatement.setString(4, data[4]);
+                insertStatement.setString(5, data[5]);
+                insertStatement.setString(6, data[6]);
+                insertStatement.setString(7, data[7]);
+                insertStatement.setString(8, data[8]);
+                insertStatement.setString(9, data[9]);
+                insertStatement.setString(10, data[10]);
+                insertStatement.setString(11, data[11]);
 
             insertStatement.executeUpdate();
 
