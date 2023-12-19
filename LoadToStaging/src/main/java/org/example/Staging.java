@@ -1,5 +1,8 @@
 package org.example;
 
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvValidationException;
+
 import java.io.*;
 import java.sql.*;
 import java.util.Date;
@@ -24,13 +27,13 @@ public class Staging {
     String moduleFile;
     String csv;
 
-    public Staging(ConfigReader configReader){
+    public Staging(ConfigReader configReader) {
         this.configReader = configReader;
         loadConfig();
     }
 
     // 2. Load config module
-    public void loadConfig(){
+    public void loadConfig() {
         urlControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_URL.getPropertyName());
         userControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_USERNAME.getPropertyName());
         passControl = configReader.getProperty(ConfigReader.ConfigurationProperty.STAGING_CONTROL_PASSWORD.getPropertyName());
@@ -48,14 +51,15 @@ public class Staging {
         csv = configReader.getProperty(ConfigReader.ConfigurationProperty.CSV.getPropertyName());
     }
 
-    public boolean checkPreviousProgress(){
+    public boolean checkPreviousProgress() {
         boolean result;
         // 3. Connect to database control
         controllerConnection = new Connect(urlControl, userControl, passControl);
         Connection connectControl = controllerConnection.getConnection();
 
         // 4.Checking connection to database control
-        if (connectControl == null){
+
+        if (connectControl == null) {
             // 4.1.Insert new record failed into file log
             controllerConnection.writeLogToFile(moduleFile, "fail", "connect control failed");
             return false; // kết thúc
@@ -63,25 +67,25 @@ public class Staging {
 
         // 4.2. Select * from control.data_files where name = "Extract data" and create_at = CURRENT_DATE() and status = "successful"
         String query = "SELECT * FROM control.data_files WHERE name = '" + modulePreviousProcess + "' AND created_at = CURRENT_DATE() AND status = '" + moduleSuccess + "'";
-        try{
+        try {
             Statement stmt = connectControl.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             ResultSetMetaData metaData = rs.getMetaData();
             int column = metaData.getColumnCount();
 
             // 5. Check query results
-            if (rs.next()){
+            if (rs.next()) {
                 result = true;
                 String test = "";
-                for(int i = 1; i <= column; i++){
+                for (int i = 1; i <= column; i++) {
                     String columnName = metaData.getColumnName(i);
                     String data = rs.getString(columnName);
                     test += columnName + " " + data + "\t";
                 }
-            } else{
+            } else {
                 result = false;
             }
-        } catch(SQLException e){
+        } catch (SQLException e) {
             throw new RuntimeException();
         }
         return result;
@@ -107,7 +111,7 @@ public class Staging {
             // fail
             if (connectionStaging == null) {
 
-                // 8.1. Insert control.logs(event, status, note) values ('Load to Staing', 'fail', 'connect to staging failed')
+                // 8.1. Insert control.logs(event, status, note) values ('Load to Staging', 'fail', 'connect to staging failed')
                 writeLog();
 
                 // kết thúc
@@ -149,11 +153,11 @@ public class Staging {
         }
     }
 
-        public boolean doesTableExist(Connection connection, String tableName) throws SQLException {
-            DatabaseMetaData metaData = connection.getMetaData();
-            ResultSet tables = metaData.getTables(null, null, tableName, null);
-            return tables.next();
-        }
+    public boolean doesTableExist(Connection connection, String tableName) throws SQLException {
+        DatabaseMetaData metaData = connection.getMetaData();
+        ResultSet tables = metaData.getTables(null, null, tableName, null);
+        return tables.next();
+    }
 
     public void createStagingNewsTable(Connection connection) throws SQLException {
         // Create StagingNews table
@@ -164,10 +168,10 @@ public class Staging {
         statement.close();
     }
 
-    public void insertLogProcess(){
-            Connection connection = controllerConnection.getConnection();
-            String query = "INSERT INTO control.logs(event, status) VALUES (?, ?)";
-        try{
+    public void insertLogProcess() {
+        Connection connection = controllerConnection.getConnection();
+        String query = "INSERT INTO control.logs(event, status) VALUES (?, ?)";
+        try {
             PreparedStatement pre = connection.prepareStatement(query);
             pre.setString(1, moduleLoad);
             pre.setString(2, moduleProcess);
@@ -178,10 +182,10 @@ public class Staging {
         }
     }
 
-    public void insertLogSuccess(){
+    public void insertLogSuccess() {
         Connection connection = controllerConnection.getConnection();
         String query = "INSERT INTO control.logs(event, status, create_at) VALUES (?, ?, current_date())";
-        try{
+        try {
             PreparedStatement pre = connection.prepareStatement(query);
             pre.setString(1, moduleLoad);
             pre.setString(2, moduleSuccess);
@@ -192,81 +196,77 @@ public class Staging {
         }
     }
 
-    public void writeLog(){
+    public void writeLog() {
         Connection connection = controllerConnection.getConnection();
         String query = "INSERT control.logs(event, status, note) VALUES (?, ?, ?)";
-        try{
+        try {
             PreparedStatement pre = connection.prepareStatement(query);
             pre.setString(1, moduleLoad);
             pre.setString(2, "fail");
             pre.setString(3, "connect to staging failed");
             pre.executeUpdate();
             pre.close();
-        } catch(SQLException e){
+        } catch (SQLException e) {
             throw new RuntimeException();
         }
     }
 
-    public void truncateTable(){
+    public void truncateTable() {
         Connection connection = controllerConnection.getConnection();
         String query = "TRUNCATE TABLE staging.StagingNews";
-        try{
+        try {
             PreparedStatement pre = connection.prepareStatement(query);
             pre.executeUpdate();
             pre.close();
-        } catch(SQLException e){
+        } catch (SQLException e) {
             throw new RuntimeException();
         }
     }
 
-    public void insertDataIntoStagingNews(String filePath){
+    public void insertDataIntoStagingNews(String filePath) {
         Connection connection = controllerConnection.getConnection();
-        String line;
         try {
             PreparedStatement insertStatement = connection.prepareStatement(
                     "INSERT INTO staging.StagingNews (title, image, category, desciption, content, author, tags, create_at, update_at, create_by, update_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
             // 10. Read data from file VNEXPRESS_dd_MM_yyyy.csv
-            BufferedReader reader = new BufferedReader(new FileReader(filePath));
-            reader.readLine();
+            CSVReader reader = new CSVReader(new FileReader(filePath));
+            String[] line;
+            reader.skip(1);
 
-            while ((line = reader.readLine()) != null) {
-            String[] data = line.split(",");
+            while ((line = reader.readNext()) != null) {
 
-                insertStatement.setString(1, data[0]);
-                insertStatement.setString(2, data[1]);
-                insertStatement.setString(3, data[2]);
-                insertStatement.setString(4, data[4]);
-                insertStatement.setString(5, data[5]);
-                insertStatement.setString(6, data[6]);
-                insertStatement.setString(7, data[7]);
-                insertStatement.setString(8, data[8]);
-                insertStatement.setString(9, data[9]);
-                insertStatement.setString(10, data[10]);
-                insertStatement.setString(11, data[11]);
+                insertStatement.setString(1, line[0]);
+                insertStatement.setString(2, line[1]);
+                insertStatement.setString(3, line[2]);
+                insertStatement.setString(4, line[3]);
+                insertStatement.setString(5, line[4]);
+                insertStatement.setString(6, line[5]);
+                insertStatement.setString(7, line[6]);
+                insertStatement.setString(8, line[7]);
+                insertStatement.setString(9, line[8]);
+                insertStatement.setString(10, line[9]);
+                insertStatement.setString(11, line[10]);
 
-            insertStatement.executeUpdate();
+                insertStatement.executeUpdate();
 
-        }
+            }
 
-        insertStatement.close();
-        } catch (SQLException | IOException e) {
+            insertStatement.close();
+        } catch (SQLException | IOException | CsvValidationException e) {
             e.printStackTrace();
         }
     }
 
-    public String loadFilePath(){
+    public String loadFilePath() {
         Connection connection = controllerConnection.getConnection();
         String filePath = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
 
-        if (filePath == null || filePath.isEmpty()) {
-            controllerConnection.writeLogToFile(moduleFile, "error", "Invalid file path");
-        }
 
         try {
-            ps = connection.prepareStatement("SELECT location FROM control.data_file_configs WHERE create_at = \"2023-12-14 08:50:55\" ORDER BY create_at DESC LIMIT 1");
+            ps = connection.prepareStatement("SELECT location FROM control.data_file_configs ORDER BY create_at DESC LIMIT 1");
             rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -275,12 +275,12 @@ public class Staging {
             }
             ps.close();
             rs.close();
-        } catch(SQLException e){
+        } catch (SQLException e) {
             e.printStackTrace();
         }
-
         return filePath;
     }
+
 
     public void insertDataFiles(){
         Connection connection = controllerConnection.getConnection();

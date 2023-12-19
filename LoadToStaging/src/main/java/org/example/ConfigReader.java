@@ -35,7 +35,7 @@ public class ConfigReader {
     public ConfigReader() {
         properties = new Properties();
         try {
-             properties.load(new FileInputStream("./Config.properties"));
+            properties.load(new FileInputStream("./Config.properties"));
         } catch (IOException e) {
             e.printStackTrace();
         }
