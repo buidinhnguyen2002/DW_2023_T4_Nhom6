@@ -64,7 +64,7 @@ public class LoadSourceToFile {
             Elements tags = doc.select("ul.ul-nav-folder > li");
             Elements elements = doc.select("article.item-news.item-news-common.thumb-left");
             for (Element element : elements) {
-                String title = element.select("h2.title-news > a").attr("title");
+                String title = element.select("h3.title-news > a").attr("title");
                 System.out.println(title);
                 String image = element.select("picture > img").attr("src");
                 String realImg = "";
@@ -169,7 +169,7 @@ public class LoadSourceToFile {
 
     public void run() {
         // 3.1 connect to database
-        GetConnection connection = new GetConnection(url, user, password);
+         connection = new GetConnection(url, user, password);
         try {
             //3.1.1 check connect successfully
             Connection connect = connection.getConnection();
@@ -182,7 +182,6 @@ public class LoadSourceToFile {
             // success
             //3.2 insert control.logs(event, status) values ("Load from Source to File", "in process");
             insertLogProcess();
-
             Statement statement = connect.createStatement();
             // 3.3 insert source path to table data_file_configs
             String sourcePath = "https://vnexpress.net/thoi-su";
@@ -197,7 +196,6 @@ public class LoadSourceToFile {
             parseToCSVFile("Load_from_Source_To_File/src/main/java/data/data.json");
             // 3.8 update status to table data_files
             udpateStatusDataFiles();
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -232,7 +230,7 @@ public class LoadSourceToFile {
             pre.executeUpdate();
             pre.close();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            writeLog(e.getMessage());
         }
     }
 
@@ -294,7 +292,7 @@ public class LoadSourceToFile {
 
     public void writeLog(String note) {
         Connection connect = connection.getConnection();
-        String query = "INSERT control.logs(event, status, note) VALUES (?, ?, ?)";
+        String query = "INSERT control.Logs(event, status, note) VALUES (?, ?, ?)";
         try {
             PreparedStatement pre = connect.prepareStatement(query);
             pre.setString(1, moduleLoad);
@@ -303,7 +301,7 @@ public class LoadSourceToFile {
             pre.executeUpdate();
             pre.close();
         } catch (SQLException e) {
-            throw new RuntimeException();
+            throw new RuntimeException(e);
         }
     }
 
