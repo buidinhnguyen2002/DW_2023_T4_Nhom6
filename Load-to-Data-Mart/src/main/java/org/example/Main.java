@@ -136,7 +136,7 @@ public class Main {
             }
             // Kết nối đến Data Mart
             // Truy vấn SQL để lấy dữ liệu từ bảng trong Data Warehouse
-            // 8.2 Get rows in table news_articles (SELECT * FROM news_articles)
+            // 8.2 Get rows in table news_articles (SELECT * FROM news_articles where DATE(date) = CURDATE())
             String sqlSelect = "SELECT * FROM news_articles WHERE DATE(date) = CURDATE()";
 
             Statement stmtDW = connectionDW.createStatement();
@@ -169,8 +169,8 @@ public class Main {
             }
             // 11. Rename table news_articles_temp to present_news_articles
             renameTable(connectionDM);
-            // 12. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
-//            updateStatusProcess("successful");
+            // 12. Insert new record into table control.log with event="load to data mart",status="successful"
+            //(INSERT INTO logs(event, status) VALUES ('load to data mart','successful'))
             insertLogsProcess("successful", "");
             // Đóng các kết nối
             // 13. Close all connect database
