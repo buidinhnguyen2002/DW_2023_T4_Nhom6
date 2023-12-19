@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/Load-to-Data-Mart/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Load-to-Data-Mart/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Load_from_Source_To_File/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Load_from_Source_To_File/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Load_to_DataWarehouse/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Load_to_DataWarehouse/src/main/resources" charset="UTF-8" />
+  </component>
+</project>
