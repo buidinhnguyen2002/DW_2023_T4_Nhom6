@@ -1,6 +1,9 @@
 package org.example;
 
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class TransformField {
 
@@ -116,7 +119,20 @@ public class TransformField {
             // 10. Get rows form StagingNews table
             ResultSet stagingNewsResultSet = getStagingNewsRows(connectionStaging);
 
-            // 11. Insert into News and Category tables
+            while (stagingNewsResultSet.next()) {
+                String createAt = stagingNewsResultSet.getString("create_at");
+
+                // 11. Check if create_at format is dd-MM-yyyy
+                // false
+                if (!isValidDateFormat(createAt, "dd-MM-yyyy")) {
+                    // 11.1. Insert new record failed into file log
+                    controllerConnection.writeLogToFile(moduleFile, "fail", "Date format error");
+                    return; // kết thúc
+                }
+            }
+
+            // true
+            // 11.2. Insert into News and Category tables
             insertIntoNewsAndCategory(stagingNewsResultSet, connectionStaging);
 
             // 12. Insert into control.logs(event, status, create_at) values ('Transform', 'successful', current_date())
@@ -275,6 +291,21 @@ public class TransformField {
             // Category doesn't exist
             return -1;
         }
+    }
+
+    public boolean isValidDateFormat(String dateStr, String format){
+        SimpleDateFormat sdf = new SimpleDateFormat(format);
+        sdf.setLenient(false);
+
+        try {
+            // Parsing ngày theo định dạng
+            Date date = sdf.parse(dateStr);
+            System.out.println("Date: " + sdf.format(date)); // Kiểm tra in ngày đã parse (optional)
+        } catch (ParseException e) {
+            // Nếu có lỗi ParseException, tức là định dạng không hợp lệ
+            return false;
+        }
+        return true;
     }
 
     public static void main(String[] args) {

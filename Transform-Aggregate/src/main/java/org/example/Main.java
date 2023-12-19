@@ -62,7 +62,7 @@ public class Main {
         }
         // 5.2 Select  * from logs where event = "transform aggregate" and DATE(create_at) = CURDATE() and status="successful"
         String queryPreviousProcess = "SELECT * FROM logs where event='" + previousModule + "' AND DATE(create_at) = CURDATE() AND status='successful'";
-                try {
+        try {
             Statement stmtControl = connectionControl.createStatement();
             ResultSet rs = stmtControl.executeQuery(queryPreviousProcess);
             ResultSetMetaData metaData = rs.getMetaData();
@@ -80,7 +80,6 @@ public class Main {
             }else{
                 result = false;
             }
-            //
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -88,26 +87,33 @@ public class Main {
     }
 
     public void executeApp() {
+        // 6. Check query results
         if (!checkPreviousProgress()) {
             return;
         }
+        // 7. Check query results
+        if (checkProcessEverRun()) {
+            return;
+        }
         // insert logs
-        // 6.1 Insert new record into table control.log with event="Load to data mart",status="in process" (INSERT INTO logs(event, status) VALUES ('Load to data mart','in process'))
-        insertLogsProcess();
-        // 7. Connect database data_warehouse
+        // 7.1 Insert new record into table control.log with event="transform aggregate",status="in process"
+        //(INSERT INTO logs(event, status) VALUES ('transform aggregate','in process'))
+        insertLogsProcess("in process", "");
+        // 8. Connect database data_warehouse
         ConnectDB connectDW = new ConnectDB(urlDW, userDW, passDW, filePathLogs, idLog, connectDBControl.getConnection());
         try {
-            // Kết nối đến Data Warehouse
             Connection connectionDW = connectDW.getConnection();
-            // 8. Checking connection to data_warehouse
+            // 9. Checking connection to data_warehouse
             if(connectionDW == null) {
-                // 8.1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_warehouse failed' WHERE id=1)
-                connectDW.writeLogs();
+                //9.1 Insert new record into table control.log with event="transform aggregate",status="fail", note="content error"
+                //(INSERT INTO logs(event, status, note) VALUES ('transform aggregate','fail', 'connect data_warehouse failed'))
+//                connectDW.writeLogs();
+                insertLogsProcess("fail", "connect data_warehouse failed");
                 return;
             }
             // Kết nối đến Data Mart
             // Truy vấn SQL để lấy dữ liệu từ bảng trong Data Warehouse
-            // 8.2 Get rows in table news_articles (SELECT * FROM news_articles)
+            // 9.2 Query get rows in table dim_time, dim_article, dim_news_category, dim_author, fact_news_articles
             String sqlSelect = createQuerySelectData();
             System.out.println("SQL: " +  sqlSelect);
             Statement stmtDW = connectionDW.createStatement();
@@ -117,7 +123,7 @@ public class Main {
             String sqlInsert = createQueryInsertToNewsArticles("news_articles");
             PreparedStatement pstmtDW = connectionDW.prepareStatement(sqlInsert);
             String[] columnsArr = columns.split(",");
-            // 9. Insert rows into table news_articles
+            // 10. Insert rows into table news_articles
             while (rs.next()) {
                 // Lấy dữ liệu từ kết quả truy vấn DW và chèn vào DM
                 for(int i=0; i< columnsArr.length; i++){
@@ -127,11 +133,11 @@ public class Main {
                 // Thực hiện chèn dữ liệu vào Data Mart
                 pstmtDW.executeUpdate();
             }
-
-            // 10. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
-            updateStatusProcess("successful");
+            // 11. Insert new record into table control.log with event="transform aggregate",status="successful",
+            //(INSERT INTO logs(event, status) VALUES ('transform aggregate','successful'))
+            insertLogsProcess("successful", "");
             // Đóng các kết nối
-            // 11. Close all connect database
+            // 12. Close all connect database
             rs.close();
             stmtDW.close();
             pstmtDW.close();
@@ -141,6 +147,28 @@ public class Main {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private boolean checkProcessEverRun() {
+        boolean result = false;
+        Connection connectionControl = connectDBControl.getConnection();
+        // 6.1 Select  * from logs where event = "transform aggregate" and DATE(create_at) = CURDATE() and status="successful"
+        String queryProcess = "SELECT * FROM logs where event='" + moduleName + "' AND DATE(create_at) = CURDATE() AND status='successful'";
+        try {
+            Statement stmtControl = connectionControl.createStatement();
+            ResultSet rs = stmtControl.executeQuery(queryProcess);
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            // 6. Check query results
+            if(rs.next()){
+                result = true;
+            }else{
+                result = false;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
     }
 
     private String createQuerySelectData() {
@@ -153,6 +181,7 @@ public class Main {
             sql += " AND DATE(t.date) = " + "'"+dateFrom+"'";
             return sql;
         }
+        sql += "AND DATE(t.date) = CURDATE() ";
         return sql;
     }
 
@@ -169,13 +198,32 @@ public class Main {
         }
     }
 
-    private void insertLogsProcess() {
+//    private void insertLogsProcess() {
+//        Connection connection = connectDBControl.getConnection();
+//        String sqlInsert = "INSERT INTO logs(event, status) VALUES (?, ?)";
+//        try {
+//            PreparedStatement preparedStatement = connection.prepareStatement(sqlInsert,Statement.RETURN_GENERATED_KEYS);
+//            preparedStatement.setString(1, moduleName);
+//            preparedStatement.setString(2, "in process");
+//            preparedStatement.executeUpdate();
+//            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+//            if (generatedKeys.next()) {
+//                idLog = generatedKeys.getInt(1);
+//            }
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    private void insertLogsProcess(String status, String note) {
         Connection connection = connectDBControl.getConnection();
-        String sqlInsert = "INSERT INTO logs(event, status) VALUES (?, ?)";
+        String sqlInsert = "INSERT INTO logs(event, status, note) VALUES (?, ?, ?)";
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(sqlInsert,Statement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, moduleName);
-            preparedStatement.setString(2, "in process");
+//            preparedStatement.setString(2, "in process");
+            preparedStatement.setString(2, status);
+            preparedStatement.setString(3, note);
             preparedStatement.executeUpdate();
             ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
@@ -235,14 +283,18 @@ public class Main {
         }
         ConfigReader configReader = new ConfigReader();
         Main main = new Main(configReader);
+        // 3. Check args.length == 0
         if(args.length == 0){
             main.executeApp();
             return;
         }
         if(args.length == 1){
-            // 2.2 Get parameter module
+            // 3.1 Get parameter module
             String date = args[0];
+            // 3.1.1 Check format parameter
+            //(format parameter is yyyy-mm-dd)
             if(!checkFormatDate(date)){
+                // 3.1.2 Display error
                 System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd");
                 return;
             }
@@ -251,13 +303,13 @@ public class Main {
             return;
         }
         if(args.length == 2){
-            // 2.2 Get parameter module
+            // 3.1 Get parameter module
             String dateFrom = args[0];
             String dateTo = args[1];
-            // 3. Check format parameter
+            // 3.1.1 Check format parameter
             //(format parameter is yyyy-mm-dd)
             if(!checkFormatDate(dateFrom) || !checkFormatDate(dateTo)){
-                // 3.1 Display error
+                // 3.1.2 Display error
                 System.out.print("Error command: \n" + "example: java -jar Transform-Aggregate.jar yyyy-mm-dd yyyy-mm-dd");
                 return;
             }

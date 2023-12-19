@@ -75,9 +75,18 @@ public class Connect {
         try {
             writer = new BufferedWriter(new FileWriter(new File(filePath), true));
             writer.write(logData);
+            writer.newLine();
             System.out.println("Log has been written successfully.");
         } catch (IOException e) {
             System.err.println("Error writing to the log file: " + e.getMessage());
+        } finally {
+            try {
+                if (writer != null) {
+                    writer.close();
+                }
+            } catch (IOException e) {
+                System.err.println("Error closing the log file: " + e.getMessage());
+            }
         }
     }
 }
