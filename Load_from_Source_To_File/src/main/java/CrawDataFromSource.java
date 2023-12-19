@@ -3,30 +3,36 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
+import getConnection.LogError;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
 
 public class CrawDataFromSource {
-    public String crawlData(String url) throws IOException {
-        // check connection
+    // 2.5.1 crawl data from source
+    public String crawlData(String url){
+        //2.5.1.1 check connection
         if (url == null || url.isEmpty()) {
-            return "URL is empty";
+            LogError.log("URL is empty or null");
         }
-        Document doc = Jsoup.connect(url).get();
+        Document doc = null;
+        JsonArray jsonArray = new JsonArray();
+        // 2.5.1.2 check successfull crawl data
+        try {
+            doc = Jsoup.connect(url).get();
         String category = doc.select("div.title-folder > h1 > a").text();
         Elements tags = doc.select("ul.ul-nav-folder > li");
         Elements elements = doc.select("article.item-news.item-news-common.thumb-left");
-        com.google.gson.JsonArray jsonArray = new JsonArray();
         for (Element element : elements) {
-            String id = category + "_" + elements.indexOf(element);
-            String title = element.select("h3.title-news > a").text();
+            String title = element.select("h3.title-news > a").attr("title");
+            System.out.println(title);
             String image = element.select("picture > img").attr("src");
             String realImg = "";
             if (image.contains("base64")) {
@@ -48,7 +54,6 @@ public class CrawDataFromSource {
             }
             String author = doc2.select("p > strong").text();
             JsonObject jsonObject = new JsonObject();
-            jsonObject.addProperty("id", id);
             jsonObject.addProperty("title", title);
             jsonObject.addProperty("image", realImg);
             jsonObject.addProperty("category", category);
@@ -64,11 +69,16 @@ public class CrawDataFromSource {
             jsonObject.add("tags", jsonTags);
             jsonArray.add(jsonObject);
         }
-
+        return jsonArray.toString();
+        } catch (IOException e) {
+            LogError.log(e.getMessage());
+        }
         Gson gson = new Gson();
         return gson.toJson(jsonArray);
     }
+    // 2.5.2 save data to file json
     public void saveDataToFileJson(String data, String path) {
+        // 2.5.2.1 check successfully save data to file json
         try {
             File file = new File(path);
             if (file.exists()) {
@@ -81,41 +91,41 @@ public class CrawDataFromSource {
             throw new RuntimeException(e);
         }
     }
+    // 2.5.3 parse data to csv file
     public void parseToCSVFile(String path) {
-        // parse data to csv file
         JsonParser jsonParser = new JsonParser();
+        // 2.5.3.1 check successfully parse data
         try{
             Object object = jsonParser.parse(new FileReader(path));
             JsonArray jsonArray = (JsonArray) object;
-            String[] header = {"id", "title", "image", "category", "link", "description", "content", "author", "tags","created_at","updated_at","created_by","updated_by","updated_by"};
+            String[] header = { "title", "image", "category", "link", "description", "content", "author", "tags","created_at","updated_at","created_by","updated_by"};
             CSVWriter csvWriter = new CSVWriter(new FileWriter("Load_from_Source_To_File/src/main/java/data/"+getFileNameByCurrentDateFormat(new Date())));
             csvWriter.writeNext(header);
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
             for (int i = 0; i < jsonArray.size(); i++) {
-                String[] data = new String[13];
-                data[0] = jsonArray.get(i).getAsJsonObject().get("id").getAsString();
-                data[1] = jsonArray.get(i).getAsJsonObject().get("title").getAsString();
-                data[2] = jsonArray.get(i).getAsJsonObject().get("image").getAsString();
-                data[3] = jsonArray.get(i).getAsJsonObject().get("category").getAsString();
-                data[4] = jsonArray.get(i).getAsJsonObject().get("link").getAsString();
-                data[5] = jsonArray.get(i).getAsJsonObject().get("description").getAsString();
-                data[6] = jsonArray.get(i).getAsJsonObject().get("content").getAsString();
-                data[7] = jsonArray.get(i).getAsJsonObject().get("author").getAsString();
-                data[8] = jsonArray.get(i).getAsJsonObject().get("tags").toString();
+                String[] data = new String[12];
+                data[0] = jsonArray.get(i).getAsJsonObject().get("title").getAsString();
+                data[1] = jsonArray.get(i).getAsJsonObject().get("image").getAsString();
+                data[2] = jsonArray.get(i).getAsJsonObject().get("category").getAsString();
+                data[3] = jsonArray.get(i).getAsJsonObject().get("link").getAsString();
+                data[4] = jsonArray.get(i).getAsJsonObject().get("description").getAsString();
+                data[5] = jsonArray.get(i).getAsJsonObject().get("content").getAsString();
+                data[6] = jsonArray.get(i).getAsJsonObject().get("author").getAsString();
+                data[7] = jsonArray.get(i).getAsJsonObject().get("tags").toString();
+                data[8] = formatter.format(new Date());
                 data[9] = formatter.format(new Date());
-                data[10] = formatter.format(new Date());
+                data[10] = "admin";
                 data[11] = "admin";
-                data[12] = "admin";
                 csvWriter.writeNext(data);
             }
             csvWriter.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LogError.log(e.getMessage());
         }
     }
 
-    private String getFileNameByCurrentDateFormat(Date date) {
+    static String getFileNameByCurrentDateFormat(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
         String dateStr = formatter.format(date);
         return "VNExpress"+dateStr + ".csv";
@@ -123,15 +133,8 @@ public class CrawDataFromSource {
 
     public static void main(String[] args) {
         CrawDataFromSource crawDataFromSource = new CrawDataFromSource();
-        try {
-            String data = crawDataFromSource.crawlData("https://vnexpress.net/the-thao");
-//            crawDataFromSource.saveDataToFileJson(data, "Load_from_Source_To_File/src/main/java/data/data.json");
-            crawDataFromSource.parseToCSVFile("Load_from_Source_To_File/src/main/java/data/data.json");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        String data = crawDataFromSource.crawlData("https://vnexpress.net/kinh-doanh");
+        crawDataFromSource.saveDataToFileJson(data, "Load_from_Source_To_File/src/main/java/data/data.json");
+        crawDataFromSource.parseToCSVFile("Load_from_Source_To_File/src/main/java/data/data.json");
     }
-
-
-
 }
