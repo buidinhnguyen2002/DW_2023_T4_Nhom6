@@ -25,7 +25,7 @@ public class Main {
         this.configReader = configReader;
         loadConfig();
     }
-    // 1. load config module
+    // 2. load config module
     public void loadConfig() {
         // load config module
         moduleName = configReader.getProperty(ConfigReader.ConfigurationProperty.MODULE_LOAD_TO_DATA_MART.getPropertyName());
@@ -88,39 +88,68 @@ public class Main {
         }
         return result;
     }
+    private boolean checkProcessEverRun() {
+        boolean result = false;
+        Connection connectionControl = connectDBControl.getConnection();
+        // 5.1 Select  * from logs where event = "transform aggregate" and DATE(create_at) = CURDATE() and status="successful"
+        String queryProcess = "SELECT * FROM logs where event='" + moduleName + "' AND DATE(create_at) = CURDATE() AND status='successful'";
+        try {
+            Statement stmtControl = connectionControl.createStatement();
+            ResultSet rs = stmtControl.executeQuery(queryProcess);
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            // 6. Check query results
+            if(rs.next()){
+                result = true;
+            }else{
+                result = false;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
+    }
 
     public void executeApp() {
+        // 5. Check query results
         if (!checkPreviousProgress()) {
             return;
         }
+        // 6. Check query results
+        if (checkProcessEverRun()) {
+            return;
+        }
         // insert logs
-        // 5.1 Insert new record into table control.log with event="Load to data mart",status="in process" (INSERT INTO logs(event, status) VALUES ('Load to data mart','in process'))
-        insertLogsProcess();
-        // 6. Connect database data_warehouse
+        // 6.1 Insert new record into table control.log with event="Load to data mart",status="in process" (INSERT INTO logs(event, status) VALUES ('Load to data mart','in process'))
+        insertLogsProcess("in process", "");
+        // 7. Connect database data_warehouse
         ConnectDB connectDW = new ConnectDB(urlDW, userDW, passDW, filePathLogs, idLog, connectDBControl.getConnection());
         try {
             // Kết nối đến Data Warehouse
             Connection connectionDW = connectDW.getConnection();
-            // 7. Checking connection to data_warehouse
+            // 8. Checking connection to data_warehouse
             if(connectionDW == null) {
-                // 7. 1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_warehouse failed' WHERE id=1)
-                connectDW.writeLogs();
+                // 8. 1 Insert new record into table control.log with event="load to data mart",status="fail", note="content error"
+                //(INSERT INTO logs(event, status,note) VALUES ('load to data mart','fail', 'connect data_warehouse failed'))
+                insertLogsProcess("fail", "connect data_warehouse failed");
                 return;
             }
             // Kết nối đến Data Mart
             // Truy vấn SQL để lấy dữ liệu từ bảng trong Data Warehouse
-            // 7.2 Get rows in table news_articles (SELECT * FROM news_articles)
-            String sqlSelect = "SELECT * FROM news_articles";
+            // 8.2 Get rows in table news_articles (SELECT * FROM news_articles where DATE(date) = CURDATE())
+            String sqlSelect = "SELECT * FROM news_articles WHERE DATE(date) = CURDATE()";
+
             Statement stmtDW = connectionDW.createStatement();
             ResultSet rs = stmtDW.executeQuery(sqlSelect);
 
-            // 8. Connect database data_mart
+            // 9. Connect database data_mart
             ConnectDB connectDM = new ConnectDB(urlDM, userDM, passDM, filePathLogs, idLog, connectDBControl.getConnection());
             Connection connectionDM = connectDM.getConnection();
-            // 9. Checking connection to data_mart
+            // 10. Checking connection to data_mart
             if(connectionDM == null) {
-                // 9.1 Update logs module with status = "fail" and note="content error" (UPDATE logs SET status='fail',note='connect data_mart failed' WHERE id=1)
-                connectDW.writeLogs();
+               // 10.1 Insert new record into table control.log with event="load to data mart",status="fail", note="content error"
+                //(INSERT INTO logs(event, status,note) VALUES ('load to data mart','fail', 'connect data_mart failed'))
+                insertLogsProcess("fail", "connect data_mart failed");
                 return;
             }
             // PreparedStatement để chèn dữ liệu vào Data Mart
@@ -128,7 +157,7 @@ public class Main {
             PreparedStatement pstmtDM = connectionDM.prepareStatement(sqlInsert);
             String[] columnsArr = columns.split(",");
             // Duyệt qua kết quả từ Data Warehouse và chèn vào Data Mart
-            // 10. Insert rows into table news_articles_temp
+            // 10.2 Insert rows into table news_articles_temp
             while (rs.next()) {
                 // Lấy dữ liệu từ kết quả truy vấn DW và chèn vào DM
                 for(int i=0; i< columnsArr.length; i++){
@@ -140,8 +169,9 @@ public class Main {
             }
             // 11. Rename table news_articles_temp to present_news_articles
             renameTable(connectionDM);
-            // 12. Update logs module with status = "successful" (UPDATE logs SET status='successful' WHERE id=1)
-            updateStatusProcess("successful");
+            // 12. Insert new record into table control.log with event="load to data mart",status="successful"
+            //(INSERT INTO logs(event, status) VALUES ('load to data mart','successful'))
+            insertLogsProcess("successful", "");
             // Đóng các kết nối
             // 13. Close all connect database
             rs.close();
@@ -170,13 +200,32 @@ public class Main {
         }
     }
 
-    private void insertLogsProcess() {
+//    private void insertLogsProcess() {
+//        Connection connection = connectDBControl.getConnection();
+//        String sqlInsert = "INSERT INTO logs(event, status) VALUES (?, ?)";
+//        try {
+//            PreparedStatement preparedStatement = connection.prepareStatement(sqlInsert,Statement.RETURN_GENERATED_KEYS);
+//            preparedStatement.setString(1, moduleName);
+//            preparedStatement.setString(2, "in process");
+//            preparedStatement.executeUpdate();
+//            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+//            if (generatedKeys.next()) {
+//                idLog = generatedKeys.getInt(1);
+//            }
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    private void insertLogsProcess(String status, String note) {
         Connection connection = connectDBControl.getConnection();
-        String sqlInsert = "INSERT INTO logs(event, status) VALUES (?, ?)";
+        String sqlInsert = "INSERT INTO logs(event, status, note) VALUES (?, ?, ?)";
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(sqlInsert,Statement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, moduleName);
-            preparedStatement.setString(2, "in process");
+//            preparedStatement.setString(2, "in process");
+            preparedStatement.setString(2, status);
+            preparedStatement.setString(3, note);
             preparedStatement.executeUpdate();
             ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
@@ -186,7 +235,6 @@ public class Main {
             throw new RuntimeException(e);
         }
     }
-
     private void renameTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         // Đổi tên bảng present_news_articles => articles_temp
@@ -219,14 +267,9 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        String configPath = "";
-        if (args.length > 0) {
-            configPath = args[0];
-        }
-        System.out.println();
-        System.out.println(configPath);
         ConfigReader configReader = new ConfigReader();
         Main main = new Main(configReader);
+        // 1. Run LoadDataMart.jar
         main.executeApp();
     }
 }
