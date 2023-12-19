@@ -1,4 +1,4 @@
-create database control;
+create database if not exists control;
 use control;
 create table control.data_files(id SERIAL,
 								df_config_id bigint,
@@ -37,6 +37,5 @@ create table control.Logs (id int not null auto_increment primary key,
                            status varchar(255),
                            note varchar(1000),
 						   create_at date);
-                           
                            select * from control.Logs;
                           drop table control.Logs;		
