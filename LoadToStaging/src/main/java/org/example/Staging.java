@@ -56,7 +56,6 @@ public class Staging {
 
         // 4.Checking connection to database control
         if (connectControl == null){
-
             // 4.1.Insert new record failed into file log
             controllerConnection.writeLogToFile(moduleFile, "fail", "connect control failed");
             return false; // kết thúc
