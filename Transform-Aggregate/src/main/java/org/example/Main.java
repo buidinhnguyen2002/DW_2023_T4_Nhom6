@@ -105,7 +105,9 @@ public class Main {
             Connection connectionDW = connectDW.getConnection();
             // 9. Checking connection to data_warehouse
             if(connectionDW == null) {
-                //9.1 Insert new record into table control.log with event="transform aggregate",status="fail", note="content error"
+
+               //9.1 Insert new record into table control.log with event="transform aggregate",status="fail", note="content error"
+              
                 //(INSERT INTO logs(event, status, note) VALUES ('transform aggregate','fail', 'connect data_warehouse failed'))
 //                connectDW.writeLogs();
                 insertLogsProcess("fail", "connect data_warehouse failed");
