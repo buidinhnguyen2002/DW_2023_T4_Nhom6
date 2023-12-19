@@ -1,5 +1,4 @@
 package getConnection;
-
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -7,7 +6,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
 public class GetConnection {
     // getConnection to control database
  String url;

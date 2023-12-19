@@ -65,7 +65,6 @@ public class LoadSourceToFile {
             Elements elements = doc.select("article.item-news.item-news-common.thumb-left");
             for (Element element : elements) {
                 String title = element.select("h3.title-news > a").attr("title");
-                System.out.println(title);
                 String image = element.select("picture > img").attr("src");
                 String realImg = "";
                 if (image.contains("base64")) {
