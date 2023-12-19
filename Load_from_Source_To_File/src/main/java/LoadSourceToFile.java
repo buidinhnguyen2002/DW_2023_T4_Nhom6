@@ -3,8 +3,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
-import getConnection.ConfigReader;
-import getConnection.GetConnection;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -42,8 +41,8 @@ public class LoadSourceToFile {
         moduleSuccess = configReader.getProperty("Module.Success");
         moduleFile = configReader.getProperty("Module.FileLogsError");
         moduleProcess = configReader.getProperty("Module.Process");
-        csv = "VNEXPRESS_";
-        csvFilePath = "D:\\data_warehouse\\DW_2023_T4_Nhom6\\Load_from_Source_To_File\\src\\main\\java\\data\\";
+        csv = configReader.getProperty("csv");
+        csvFilePath = configReader.getProperty("csvFilePath");
     }
 
     // 2.5.1 crawl data from source
@@ -133,7 +132,7 @@ public class LoadSourceToFile {
             Object object = jsonParser.parse(new FileReader(path));
             JsonArray jsonArray = (JsonArray) object;
             String[] header = {"title", "image", "category", "description", "content", "author", "tags", "created_at", "updated_at", "created_by", "updated_by"};
-            CSVWriter csvWriter = new CSVWriter(new FileWriter("Load_from_Source_To_File/src/main/java/data/" + getFileNameByCurrentDateFormat(new Date())));
+            CSVWriter csvWriter = new CSVWriter(new FileWriter("./" + getFileNameByCurrentDateFormat(new Date())));
             csvWriter.writeNext(header);
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             for (int i = 0; i < jsonArray.size(); i++) {
@@ -162,7 +161,7 @@ public class LoadSourceToFile {
     public String getFileNameByCurrentDateFormat(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy");
         String dateStr = formatter.format(date);
-        return "VNEXPRESS_" + dateStr + ".csv";
+        return csv + dateStr + ".csv";
     }
 
 
@@ -190,9 +189,9 @@ public class LoadSourceToFile {
             // 3.5 crawl data from source
             String data = crawlData(sourcePath);
             // 3.6 save data to file json
-            saveDataToFileJson(data, "Load_from_Source_To_File/src/main/java/data/data.json");
+            saveDataToFileJson(data, "./data.json");
             // 3.7 parse data to csv file
-            parseToCSVFile("Load_from_Source_To_File/src/main/java/data/data.json");
+            parseToCSVFile("./data.json");
             // 3.8 update status to table data_files
             udpateStatusDataFiles();
         } catch (SQLException e) {
@@ -221,7 +220,7 @@ public class LoadSourceToFile {
 
     public void insertLogProcess() {
         Connection connect = connection.getConnection();
-        String query = "INSERT INTO control.logs(event, status) VALUES (?, ?)";
+        String query = "INSERT INTO control.Logs(event, status) VALUES (?, ?)";
         try {
             PreparedStatement pre = connect.prepareStatement(query);
             pre.setString(1, moduleLoad);
@@ -236,19 +235,16 @@ public class LoadSourceToFile {
     // 2.3 add source path to table data_file_configs
     private void insertSourcePath(String sourcePath) {
         String csvFile = "VNExpress" + new SimpleDateFormat("dd_MM_yyyy").format(new Date());
-        String location = "D:\\data_warehouse\\DW_2023_T4_Nhom6\\Load_from_Source_To_File\\src\\main\\java\\data\\" + csvFile + ".csv";
+        String location = csvFilePath + csvFile + ".csv";
         Connection connect = connection.getConnection();
-        String query = "INSERT INTO control.data_file_configs(source_path, location, status, note, created_at, updated_at, created_by, updated_by)" +
-                "VALUES (?, ?, ?, ?, current_date(), current_date(), ?, ?)";
+        String query = "INSERT INTO control.data_file_configs(name,source_path, location)" +
+                "VALUES (?, ?, ?)";
         // 3.3.1 check insert successfully source path to table data_file_configs
         try {
             PreparedStatement pre = connect.prepareStatement(query);
-            pre.setString(1, sourcePath);
-            pre.setString(2, location);
-            pre.setString(3, moduleSuccess);
-            pre.setString(4, "Data import success");
-            pre.setString(5, "root");
-            pre.setString(6, "root");
+            pre.setString(1, moduleLoad);
+            pre.setString(2, sourcePath);
+            pre.setString(3, location);
             pre.executeUpdate();
             pre.close();
         } catch (Exception e) {
@@ -306,13 +302,14 @@ public class LoadSourceToFile {
 
     public String loadFilePath() {
 
-        String filePath = null;
+        String filePath = "";
         PreparedStatement ps = null;
         ResultSet rs = null;
         if (filePath == null || filePath.isEmpty()) {
-            connection.writeLogToFile("Load_from_Source_To_File/src/main/java/log.txt", "error", "Invalid file path");
+            connection.writeLogToFile("./log.txt", "error", "Invalid file path");
         } else {
             filePath = csvFilePath;
+            System.out.println(filePath);
         }
         return filePath;
     }
